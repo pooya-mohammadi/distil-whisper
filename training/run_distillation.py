@@ -333,7 +333,7 @@ class DataTrainingArguments:
             "This argument should be set for multilingual distillation only. For English speech recognition, it should be left as `None`."
         },
     )
-    wandb_project: str = field(
+    log_project: str = field(
         default="distil-whisper",
         metadata={"help": "The name of the wandb project."},
     )
@@ -813,7 +813,7 @@ def main():
     )
 
     accelerator.init_trackers(
-        project_name=data_args.wandb_project,
+        project_name=data_args.log_project,
         init_kwargs={
             "wandb": {"name": data_args.wandb_name,
                       "dir": data_args.wandb_dir}
