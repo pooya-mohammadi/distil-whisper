@@ -59,7 +59,6 @@ from transformers.models.whisper.english_normalizer import BasicTextNormalizer, 
 from transformers.utils import check_min_version
 from transformers.utils.versions import require_version
 
-
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 check_min_version("4.34.0.dev0")
 
@@ -109,7 +108,7 @@ class ModelArguments:
         default="",
         metadata={
             "help": "In case the relevant files are located inside a subfolder of the model repo on huggingface.co, you can"
-            "specify the folder name here."
+                    "specify the folder name here."
         },
     )
     token: str = field(
@@ -253,7 +252,7 @@ class DataTrainingArguments:
             )
         },
     )
-    wandb_project: str = field(
+    log_project: str = field(
         default="distil-whisper",
         metadata={"help": "The name of the wandb project."},
     )
@@ -284,7 +283,7 @@ class DataTrainingArguments:
         default="transcribe",
         metadata={
             "help": "Task, either `transcribe` for speech recognition or `translate` for speech translation."
-            "This argument should be set for multilingual distillation only. For English speech recognition, it should be left as `None`."
+                    "This argument should be set for multilingual distillation only. For English speech recognition, it should be left as `None`."
         },
     )
     decode_token_ids: bool = field(
@@ -384,10 +383,10 @@ class DataCollatorSpeechSeq2SeqWithPadding:
 
 
 def log_metric(
-    accelerator,
-    metrics: Dict,
-    train_time: float,
-    prefix: str = "eval",
+        accelerator,
+        metrics: Dict,
+        train_time: float,
+        prefix: str = "eval",
 ):
     """Helper function to log all evaluation metrics with the correct prefixes and styling."""
     log_metrics = {}
@@ -398,38 +397,38 @@ def log_metric(
 
 
 def log_pred(
-    accelerator,
-    pred_str: List[str],
-    label_str: List[str],
-    norm_pred_str: List[str],
-    norm_label_str: List[str],
-    prefix: str = "eval",
-    num_lines: int = 200000,
+        accelerator,
+        pred_str: List[str],
+        label_str: List[str],
+        norm_pred_str: List[str],
+        norm_label_str: List[str],
+        prefix: str = "eval",
+        num_lines: int = 200000,
 ):
     """Helper function to log target/predicted transcriptions to weights and biases (wandb)."""
     if accelerator.is_main_process:
-        wandb_tracker = accelerator.get_tracker("wandb")
+        # wandb_tracker = accelerator.get_tracker("wandb")
         # pretty name for split
         prefix = prefix.replace("/", "-")
 
         # convert str data to a wandb compatible format
         str_data = [[label_str[i], pred_str[i], norm_label_str[i], norm_pred_str[i]] for i in range(len(pred_str))]
         # log as a table with the appropriate headers
-        wandb_tracker.log_table(
-            table_name=f"{prefix}/all_predictions",
-            columns=["Target", "Pred", "Norm Target", "Norm Pred"],
-            data=str_data[:num_lines],
-        )
+        # wandb_tracker.log_table(
+        #     table_name=f"{prefix}/all_predictions",
+        #     columns=["Target", "Pred", "Norm Target", "Norm Pred"],
+        #     data=str_data[:num_lines],
+        # )
 
         # log incorrect normalised predictions
-        str_data = np.asarray(str_data)
-        str_data_incorrect = str_data[str_data[:, -2] != str_data[:, -1]]
-        # log as a table with the appropriate headers
-        wandb_tracker.log_table(
-            table_name=f"{prefix}/incorrect_predictions",
-            columns=["Target", "Pred", "Norm Target", "Norm Pred"],
-            data=str_data_incorrect[:num_lines],
-        )
+        # str_data = np.asarray(str_data)
+        # str_data_incorrect = str_data[str_data[:, -2] != str_data[:, -1]]
+        # # log as a table with the appropriate headers
+        # wandb_tracker.log_table(
+        #     table_name=f"{prefix}/incorrect_predictions",
+        #     columns=["Target", "Pred", "Norm Target", "Norm Pred"],
+        #     data=str_data_incorrect[:num_lines],
+        # )
 
 
 def main():
@@ -469,7 +468,26 @@ def main():
         kwargs_handlers=[kwargs],
     )
 
-    accelerator.init_trackers(project_name=data_args.wandb_project)
+    # ```python
+    # >> > from accelerate import Accelerator
+    #
+    # >> > accelerator = Accelerator(log_with="tensorboard")
+    # >> > accelerator.init_trackers(
+    #     ...
+    # project_name = "my_project",
+    # ...
+    # config = {"learning_rate": 0.001, "batch_size": 32},
+    # ...
+    # init_kwargs = {"tensorboard": {"flush_secs": 60}},
+    # ... )
+    # ```
+    if training_args.report_to == "tensorboard":
+        accelerator.init_trackers(
+            project_name=data_args.log_project,
+            init_kwargs={"tensorboard": {"flush_secs": 60}},
+        )
+    else:
+        accelerator.init_trackers(project_name=data_args.log_project)
 
     # 3. Set-up basic logging
     # Create one log on every process with the configuration for debugging
@@ -525,7 +543,7 @@ def main():
             " correct text column - one of"
             f" {', '.join(next(iter(raw_datasets.values())).column_names)}."
         )
-    
+
     # 7. Load pretrained model, tokenizer, and feature extractor
     config = WhisperConfig.from_pretrained(
         (model_args.config_name if model_args.config_name else model_args.model_name_or_path),
@@ -654,7 +672,7 @@ def main():
 
         for audio_array, text, speaker_id in zip(audio_arrays[1:], texts[1:], speaker_ids[1:]):
             is_same_speaker = speaker_id == concat_speaker_id[-1]
-            is_concatenable = len(audio_array) + len(concat_audio[-1]) <= max_input_length 
+            is_concatenable = len(audio_array) + len(concat_audio[-1]) <= max_input_length
             if is_same_speaker and is_concatenable:
                 # inplace concatenation
                 concat_audio[-1] = np.append(concat_audio[-1], audio_array)
@@ -663,7 +681,7 @@ def main():
                 concat_audio.append(audio_array)
                 concat_text.append(text)
                 concat_speaker_id.append(speaker_id)
-                condition_on_prev.append(1 if is_same_speaker else 0)   
+                condition_on_prev.append(1 if is_same_speaker else 0)
 
         batch[audio_column_name] = [{"array": array, "sampling_rate": sampling_rate} for array in concat_audio]
         batch[text_column_name] = concat_text
@@ -681,7 +699,7 @@ def main():
                 batch_size=preprocessing_batch_size,
                 num_proc=num_workers,
                 remove_columns=set(raw_datasets_features)
-                - {audio_column_name, text_column_name, id_column_name, "condition_on_prev"},
+                               - {audio_column_name, text_column_name, id_column_name, "condition_on_prev"},
                 desc="Concatenating dataset...",
             )
 
@@ -696,7 +714,7 @@ def main():
                 formatted_idx = f"{pretty_name}-{speaker}-{idx}" if speaker is not None else f"{pretty_name}-{idx}"
                 speaker_ids_formatted.append(formatted_idx)
             return {id_column_name: speaker_ids_formatted}
-        
+
         with accelerator.main_process_first():
             raw_datasets = raw_datasets.map(
                 postprocess_ids,
@@ -778,7 +796,7 @@ def main():
                 if "*.csv" not in git_lfs_extensions:
                     f.write("*.csv filter=lfs diff=lfs merge=lfs -text")
 
-        elif output_dir is not None:
+        if output_dir is not None:
             # this is where we'll save our transcriptions
             os.makedirs(output_dir, exist_ok=True)
 
@@ -900,7 +918,7 @@ def main():
             if step % training_args.logging_steps == 0 and step > 0:
                 batches.write(f"Saving transcriptions for split {split} step {step}")
                 accelerator.wait_for_everyone()
-                pred_ids = eval_preds[-(len(eval_preds) - len(pred_str)) :]
+                pred_ids = eval_preds[-(len(eval_preds) - len(pred_str)):]
                 pred_ids = filter_eot_tokens(pred_ids)
                 pred_str.extend(
                     tokenizer.batch_decode(
@@ -950,7 +968,7 @@ def main():
                 prefix=split,
             )
         else:
-            pred_ids = eval_preds[-(len(eval_preds) - len(pred_str)) :]
+            pred_ids = eval_preds[-(len(eval_preds) - len(pred_str)):]
             pred_ids = filter_eot_tokens(pred_ids)
             pred_str.extend(
                 tokenizer.batch_decode(pred_ids, skip_special_tokens=False, decode_with_timestamps=return_timestamps)
